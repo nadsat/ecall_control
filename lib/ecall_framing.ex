@@ -31,8 +31,8 @@ defmodule Ecall.Framing do
   def remove_framing(data, state) do
     {new_processed, new_in_process, lines} =
       process_data(
-        state.out_separator,
-        byte_size(state.out_separator),
+        state.in_separator,
+        byte_size(state.in_separator),
         state.max_length,
         state.processed,
         state.in_process <> data,
