@@ -46,5 +46,30 @@ defmodule CallControlTest do
   def write_data(pid , <<>>) do
     Circuits.UART.drain(pid)
   end
+
+  def send_async_ok(pid, [h|t]) do
+    send_async_ok_p(pid, h)
+    send_async_ok(pid, t)
+  end
+
+  def send_async_ok(_pid, []) do
+    :ok
+  end
+
+  defp send_async_ok_p(pid, data) do
+    case Circuits.UART.read(pid, 10000) do
+      {:ok, payload} ->
+        case payload === data do
+          true ->
+               Circuits.UART.write(pid, "ok\r\n")
+               Circuits.UART.drain(pid)
+          false ->
+            flunk("Received [#{inspect(payload)}]" <>"[#{inspect(data)}]"<> 
+              "different from expected")
+        end
+      msg ->
+               flunk("Received [#{inspect(msg)}] different from expected")
+    end
+  end
  end
 
