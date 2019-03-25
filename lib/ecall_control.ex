@@ -11,6 +11,7 @@ defmodule Ecall.Control do
     # pid: pid of serial port process
     defstruct from: nil,
       serial_pid: nil,
+      controlling_process: nil,
       cmd_list: []
   end
 
@@ -27,7 +28,7 @@ defmodule Ecall.Control do
   """
   @spec open_device(pid(), binary) :: :ok | {:error, term}
   def open_device(pid, name) do
-    GenStateMachine.call(pid, {:open, name}, 6000)
+    GenStateMachine.call(pid, {:open, self(),name}, 6000)
   end
 
   @doc """
@@ -37,6 +38,30 @@ defmodule Ecall.Control do
   def dial(pid, number, max_time \\ 5000) do
    GenStateMachine.cast(pid, {:dial, number, max_time}) 
   end
+
+  @doc """
+  Hang up a stablished or stablishing call 
+  """
+  @spec hang_up(pid()) :: :ok
+  def hang_up(pid) do
+   GenStateMachine.cast(pid, :hang_up) 
+  end
+
+  @doc """
+  Accept incoming call 
+  """
+  @spec accept(pid()) :: :ok
+  def accept(pid) do
+   GenStateMachine.cast(pid, :answer_call) 
+  end
+  @doc """
+  Reject incoming call 
+  """
+  @spec reject(pid()) :: :ok
+  def reject(pid) do
+   GenStateMachine.cast(pid, :reject_call) 
+  end
+
 
   #gen_state_machine callbacks
   def init([]) do
@@ -52,14 +77,15 @@ defmodule Ecall.Control do
     end
   end
 
-  def setup({:call,from}, {:open,name}, data) do
+  def setup({:call,from}, {:open, proc_pid, name}, data) do
     Logger.info "[SETUP][:open]"
     options = [speed: 115200, active: true]
     case Circuits.UART.open(data.serial_pid, name, options) do
       :ok -> 
         cmds = Parser.Sim7xxx.setup_list
-        new_data = %{data | from: from, cmd_list: cmds}
-        #{:keep_state,new_data,[{:reply, from, :ok}]}
+        new_data = %{data | from: from, 
+          cmd_list: cmds,
+          controlling_process: proc_pid}
         GenStateMachine.cast(self(), :at_cmd)
         {:next_state,:setup, new_data}
       ret -> 
@@ -84,22 +110,101 @@ defmodule Ecall.Control do
     GenStateMachine.cast(self(), :at_cmd)
     {:keep_state, data}
   end
-
   def setup(event_type, event_content, data) do
     handle_event(event_type, event_content, data)
   end
 
   def idle(:cast, {:dial,number,_max_time}, data) do
     Logger.info "[IDLE][:dial]"
-    cmd = "ATD" <> number <> ";"
+    cmd = Parser.Sim7xxx.dial_command(number)
     Circuits.UART.write(data.serial_pid,cmd)
-    {:keep_state, data}
+    {:next_state, :wait4_dialing, data}
   end
-
+  def idle(:cast, {:incoming, number}, data) do
+    pid = data.controlling_process
+    send(pid, {:ecall_incoming,number})
+    {:next_state, :wait4_action, data}
+  end
   def idle(event_type, event_content, data) do
     handle_event(event_type, event_content, data)
   end
 
+  def wait4_action(:cast, :answer_call, data) do
+    cmd = Parser.Sim7xxx.answer_command()
+    Circuits.UART.write(data.serial_pid,cmd)
+    {:next_state, :wait4_answer, data}
+  end
+  def wait4_action(:cast, :reject_call, data) do
+    cmd = Parser.Sim7xxx.reject_command()
+    Circuits.UART.write(data.serial_pid,cmd)
+    {:next_state, :idle, data}
+  end
+  def wait4_action(event_type, event_content, data) do
+    handle_event(event_type, event_content, data)
+  end
+  
+  def wait4_dialing(:cast, :ok, data) do
+    Logger.info "[WAIT4_DIALING][:ok]"
+    {:keep_state, data}
+  end
+  def wait4_dialing(:cast, :dialing, data) do
+    Logger.info "[WAIT4_DIALING][:dialing]"
+    {:next_state, :wait4_ring, data}
+  end
+  def wait4_dialing(event_type, event_content, data) do
+    handle_event(event_type, event_content, data)
+  end
+
+  def wait4_ring(:cast, :ringing, data) do
+    Logger.info "[WAIT4_RINGING][:ringing]"
+    {:next_state, :wait4_answer, data}
+  end
+  def wait4_ring(event_type, event_content, data) do
+    handle_event(event_type, event_content, data)
+  end
+
+  def wait4_answer(:cast, :active, data) do
+    Logger.info "[WAIT4_ANSWER][:active]"
+    pid = data.controlling_process
+    send(pid, :ecall_connected)
+    {:next_state, :connected, data}
+  end
+  def wait4_answer(event_type, event_content, data) do
+    handle_event(event_type, event_content, data)
+  end
+  
+  def connected(:cast, :disconnect, data) do
+    Logger.info "[CONNECTED][:disconnect]"
+    pid = data.controlling_process
+    send(pid, :ecall_disconnected)
+    {:next_state, :idle,data}
+  end
+  def connected(event_type, event_content, data) do
+    handle_event(event_type, event_content, data)
+  end
+
+  def wait4_disconnect_ok(:cast, :ok, data) do
+    Logger.info "[WAIT4DISCONNECT][:ok]"
+    pid = data.controlling_process
+    send(pid, :ecall_disconnected)
+    {:next_state, :idle,data}
+  end
+  def wait4_disconnect_ok(event_type, event_content, data) do
+    handle_event(event_type, event_content, data)
+  end
+
+  def handle_event(:info, {:circuits_uart, _port, ""}, data) do
+    {:keep_state, data}
+  end
+  def handle_event(:info, {:circuits_uart, _port, "\r"}, data) do
+    {:keep_state, data}
+  end
+  def handle_event(:cast, :hang_up, data) do
+    Logger.info "Hang up received"
+    cmd = Parser.Sim7xxx.hang_up_command()
+    Circuits.UART.write(data.serial_pid,cmd)
+    {:next_state, :wait4_disconnect_ok, data}
+  end
   def handle_event(:info, {:circuits_uart, _port, payload}, data) do
     Logger.info "Data from modem arrived [#{inspect(payload)}]"
     event  = Parser.Sim7xxx.get_event(payload)
@@ -109,8 +214,7 @@ defmodule Ecall.Control do
   def handle_event(event_type, event_content, data) do
     Logger.info "Data from modem arrived Generic"
     Logger.info event_type
-    Logger.info event_content
-    Logger.info data
-    {:keep_state_and_data}
+    Logger.info "#{inspect(event_content)}"
+    {:keep_state, data}
   end
 end

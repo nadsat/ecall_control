@@ -61,7 +61,7 @@ defmodule CallControlTest do
       {:ok, payload} ->
         case payload === data do
           true ->
-               Circuits.UART.write(pid, "ok\r\n")
+               Circuits.UART.write(pid, "OK\r\n")
                Circuits.UART.drain(pid)
           false ->
             flunk("Received [#{inspect(payload)}]" <>"[#{inspect(data)}]"<> 
