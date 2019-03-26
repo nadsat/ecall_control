@@ -51,7 +51,8 @@ defmodule Ecall.Control.Parser.Sim7xxx do
     :ringing
   end
   defp process_clcc("4",rest) do
-    [_,_,number|_t] = rest
+    [_,_,n|_t] = rest
+    number = String.replace(n, "\"","")
     {:incoming, number}
   end
   defp process_clcc("5",_) do
