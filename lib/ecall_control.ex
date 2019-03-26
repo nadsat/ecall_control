@@ -121,6 +121,7 @@ defmodule Ecall.Control do
     {:next_state, :wait4_dialing, data}
   end
   def idle(:cast, {:incoming, number}, data) do
+    Logger.info "[IDLE][:incoming]"
     pid = data.controlling_process
     send(pid, {:ecall_incoming,number})
     {:next_state, :wait4_action, data}
@@ -130,6 +131,7 @@ defmodule Ecall.Control do
   end
 
   def wait4_action(:cast, :answer_call, data) do
+    Logger.info "[WAIT4_ACTION][:answer_call]"
     cmd = Parser.Sim7xxx.answer_command()
     Circuits.UART.write(data.serial_pid,cmd)
     {:next_state, :wait4_answer, data}
