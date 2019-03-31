@@ -20,6 +20,9 @@ defmodule Ecall.Control.Parser.Sim7xxx do
   def reject_command() do
     "AT+CHUP"
   end
+  def end_command() do
+    "ATH"
+  end
   def get_event ("OK") do
     :ok
   end
