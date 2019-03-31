@@ -12,7 +12,12 @@ defmodule Ecall.Control do
     defstruct from: nil,
       serial_pid: nil,
       controlling_process: nil,
-      cmd_list: []
+      last_state: :idle,
+      cmd_list: [],
+      ok_time: 200,
+      dial_time: 200,
+      ring_time: 20000,
+      answer_time:  25000
   end
 
   @doc """
@@ -118,7 +123,8 @@ defmodule Ecall.Control do
     Logger.info "[IDLE][:dial]"
     cmd = Parser.Sim7xxx.dial_command(number)
     Circuits.UART.write(data.serial_pid,cmd)
-    {:next_state, :wait4_dialing, data}
+    timeout_event = {:state_timeout, data.dial_time, :wait4_dialing}
+    {:next_state, :wait4_dialing, data, timeout_event}
   end
   def idle(:cast, {:incoming, number}, data) do
     Logger.info "[IDLE][:incoming]"
@@ -195,6 +201,22 @@ defmodule Ecall.Control do
     handle_event(event_type, event_content, data)
   end
 
+  def abnormal_end(:cast, :ok, data) do
+    Logger.info "[ABNORMAL_END][:ok]"
+    pid = data.controlling_process
+    send(pid, {:error, {:state_timeout, data.last_state}})
+    {:next_state, :idle,data}
+  end
+  def abnormal_end(:state_timeout, _e, data) do
+    Logger.info "[ABNORMAL_END][timeout :ok]"
+    pid = data.controlling_process
+    send(pid, {:error, {:state_timeout, data.last_state}})
+    {:next_state, :idle,data}
+  end
+  def abnormal_end(event_type, event_content, data) do
+    handle_event(event_type, event_content, data)
+  end
+
   def handle_event(:info, {:circuits_uart, _port, ""}, data) do
     {:keep_state, data}
   end
@@ -212,6 +234,14 @@ defmodule Ecall.Control do
     event  = Parser.Sim7xxx.get_event(payload)
     GenStateMachine.cast(self(), event)
     {:keep_state, data}
+  end
+  def handle_event(:state_timeout, event_content, data) do
+    Logger.info "[:state_timeout] in [#{inspect(event_content)}]"
+    new_data = %{data | last_state: event_content}
+    cmd = Parser.Sim7xxx.end_command()
+    Circuits.UART.write(data.serial_pid,cmd)
+    timeout_event = {:state_timeout, data.ok_time, event_content}
+    {:next_state, :abnormal_end,new_data, timeout_event}
   end
   def handle_event(event_type, event_content, data) do
     Logger.info "Data from modem arrived Generic"
