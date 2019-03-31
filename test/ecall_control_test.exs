@@ -75,6 +75,31 @@ defmodule Ecall.ControlTest do
     assert_receive(:ecall_disconnected, 20000)
   end
 
+  test "dial number, hang up after max time", %{sim_port: uart}do
+    {:ok, pid} = Control.start_link
+    cmds = for n <- Parser.Sim7xxx.setup_list, do: n <> "\r"
+    spawn fn ->
+      CallControlTest.send_async_ok(uart, cmds)
+    end
+    assert :ok = Control.open_device(pid, CallControlTest.control_port())
+    assert :ok = Control.dial(pid, "131313",200)
+    assert {:ok, "ATD131313;\r"} = Circuits.UART.read(uart)
+    assert :ok = Circuits.UART.write(uart, "OK\r\n")
+    Circuits.UART.drain(uart)
+    assert :ok = Circuits.UART.write(uart, "+CLCC: 2,0,2,0,0,\"131313\",129\r\n")
+    Circuits.UART.drain(uart)
+    assert :ok = Circuits.UART.write(uart, "+CLCC: 2,0,3,0,0,\"131313\",129\r\n")
+    Circuits.UART.drain(uart)
+    assert :ok = Circuits.UART.write(uart, "+CLCC: 2,0,0,0,0,\"131313\",129\r\n")
+    Circuits.UART.drain(uart)
+    assert_receive(:ecall_connected, 20000)
+    spawn fn ->
+      CallControlTest.send_async_ok(uart, ["AT+CHUP\r"])
+    end
+    :timer.sleep(250)
+    assert_receive(:ecall_disconnected, 20000)
+  end
+
   test "incoming call, hang up calling", %{sim_port: uart}do
     {:ok, pid} = Control.start_link
     cmds = for n <- Parser.Sim7xxx.setup_list, do: n <> "\r"
