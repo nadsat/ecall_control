@@ -1,7 +1,7 @@
 defmodule Ecall.ControlTest do
   use ExUnit.Case
   alias Ecall.Control
-  alias Ecall.Control.Parser
+  alias Ecall.Control.Port
   doctest Ecall.Control
 
   setup do
@@ -10,8 +10,8 @@ defmodule Ecall.ControlTest do
 
 
   test "dial number, hang up called", %{sim_port: uart}do
-    {:ok, pid} = Control.start_link
-    cmds = for n <- Parser.Sim7xxx.setup_list, do: n <> "\r"
+    {:ok, pid} = Control.start_link(Port.Sim7xxx)
+    cmds = for n <- Port.Sim7xxx.setup_list, do: n <> "\r"
     spawn fn ->
       CallControlTest.send_async_ok(uart, cmds)
     end
@@ -33,8 +33,8 @@ defmodule Ecall.ControlTest do
   end
 
   test "dial number, no answer, state_timeout", %{sim_port: uart}do
-    {:ok, pid} = Control.start_link
-    cmds = for n <- Parser.Sim7xxx.setup_list, do: n <> "\r"
+    {:ok, pid} = Control.start_link(Port.Sim7xxx)
+    cmds = for n <- Port.Sim7xxx.setup_list, do: n <> "\r"
     spawn fn ->
       CallControlTest.send_async_ok(uart, cmds)
     end
@@ -49,10 +49,10 @@ defmodule Ecall.ControlTest do
     :timer.sleep(300)
     assert_receive({:error, {:state_timeout, :wait4_dialing}}, 20000)
   end
-
+  
   test "dial number, hang up calling", %{sim_port: uart}do
-    {:ok, pid} = Control.start_link
-    cmds = for n <- Parser.Sim7xxx.setup_list, do: n <> "\r"
+    {:ok, pid} = Control.start_link(Port.Sim7xxx)
+    cmds = for n <- Port.Sim7xxx.setup_list, do: n <> "\r"
     spawn fn ->
       CallControlTest.send_async_ok(uart, cmds)
     end
@@ -76,8 +76,8 @@ defmodule Ecall.ControlTest do
   end
 
   test "dial number, hang up after max time", %{sim_port: uart}do
-    {:ok, pid} = Control.start_link
-    cmds = for n <- Parser.Sim7xxx.setup_list, do: n <> "\r"
+    {:ok, pid} = Control.start_link(Port.Sim7xxx)
+    cmds = for n <- Port.Sim7xxx.setup_list, do: n <> "\r"
     spawn fn ->
       CallControlTest.send_async_ok(uart, cmds)
     end
@@ -101,8 +101,8 @@ defmodule Ecall.ControlTest do
   end
 
   test "incoming call, hang up calling", %{sim_port: uart}do
-    {:ok, pid} = Control.start_link
-    cmds = for n <- Parser.Sim7xxx.setup_list, do: n <> "\r"
+    {:ok, pid} = Control.start_link(Port.Sim7xxx)
+    cmds = for n <- Port.Sim7xxx.setup_list, do: n <> "\r"
     spawn fn ->
       CallControlTest.send_async_ok(uart, cmds)
     end
@@ -123,8 +123,8 @@ defmodule Ecall.ControlTest do
   end
 
   test "incoming call, hang up called", %{sim_port: uart}do
-    {:ok, pid} = Control.start_link
-    cmds = for n <- Parser.Sim7xxx.setup_list, do: n <> "\r"
+    {:ok, pid} = Control.start_link(Port.Sim7xxx)
+    cmds = for n <- Port.Sim7xxx.setup_list, do: n <> "\r"
     spawn fn ->
       CallControlTest.send_async_ok(uart, cmds)
     end
