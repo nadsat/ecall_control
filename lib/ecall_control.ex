@@ -195,12 +195,22 @@ defmodule Ecall.Control do
     handle_event(event_type, event_content, data)
   end
 
+  def handle_event(:info, {:dtmf, digit}, data) do
+    pid = data.controlling_process
+    send(pid, {:dtmf, digit})
+    {:next_state, :idle, data}
+  end
+  def handle_event(:info, :disconnect, data) do
+    pid = data.controlling_process
+    send(pid, :ecall_disconnected)
+    {:next_state, :idle, data}
+  end
   def handle_event(:cast, :hang_up, data) do
     Logger.info "Hang up received"
     module = data.port_module
     module.hang_up(data.serial_pid)
     pid = data.controlling_process
-    send(pid, :ecall_disconnected)
+    send(pid, :ecall_hungup)
     {:next_state, :idle, data}
   end
   def handle_event(:state_timeout, event_content, data) do
