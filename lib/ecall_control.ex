@@ -12,8 +12,8 @@ defmodule Ecall.Control do
      controlling_process: nil,
      port_module: nil,
      last_state: :idle,
-     ok_time: 200,
-     dial_time: 200,
+     ok_time: 300,
+     dial_time: 300,
      ring_time: 20000,
      answer_time:  25000,
      max_time: :infinity
@@ -179,22 +179,6 @@ defmodule Ecall.Control do
     handle_event(event_type, event_content, data)
   end
 
-  def wait4_disconnect_ok(:cast, :ok, data) do
-    Logger.info "[WAIT4DISCONNECT][:ok]"
-    pid = data.controlling_process
-    send(pid, :ecall_disconnected)
-    {:next_state, :idle,data}
-  end
-  def wait4_disconnect_ok(:state_timeout, :wait4_disconnect_ok, data) do
-    Logger.info "[WAIT4DISCONNECT][timeout :ok]"
-    pid = data.controlling_process
-    send(pid, :ecall_disconnected)
-    {:next_state, :idle,data}
-  end
-  def wait4_disconnect_ok(event_type, event_content, data) do
-    handle_event(event_type, event_content, data)
-  end
-
   def abnormal_end(:cast, :ok, data) do
     Logger.info "[ABNORMAL_END][:ok]"
     pid = data.controlling_process
@@ -215,8 +199,9 @@ defmodule Ecall.Control do
     Logger.info "Hang up received"
     module = data.port_module
     module.hang_up(data.serial_pid)
-    timeout_event = {:state_timeout, data.ok_time, :wait4_disconnect_ok}
-    {:next_state, :wait4_disconnect_ok, data, timeout_event}
+    pid = data.controlling_process
+    send(pid, :ecall_disconnected)
+    {:next_state, :idle, data}
   end
   def handle_event(:state_timeout, event_content, data) do
     Logger.info "[:state_timeout] in [#{inspect(event_content)}]"
