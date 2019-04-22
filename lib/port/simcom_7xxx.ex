@@ -6,10 +6,10 @@ defmodule Ecall.Control.Port.Sim7xxx do
   def setup_list do
     [
       "ATE0",
-      "AT+CLCC=1",
       "AT+CRC=0",
       "AT+CLIP=0",
-      "AT+MORING=0"
+      "AT+MORING=0",
+      "AT+CLCC=1"
     ]
   end
   def get_event ("OK") do
@@ -22,8 +22,12 @@ defmodule Ecall.Control.Port.Sim7xxx do
     [_,_,stat|t] = String.split(body, ",")
     process_clcc(stat,t)
   end
+  def get_event ("+RXDTMF: " <> data) do
+    [digit|_t] = String.split(data, "\r")
+    {:dtmf, digit}
+  end
   def get_event ("NO CARRIER"<>_b) do
-    :no_carrier
+    :nocarrier
   end
   def get_event (d) do
     Logger.info "[get_event] [unknown][#{inspect(d)}]"
