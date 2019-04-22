@@ -72,7 +72,7 @@ defmodule Ecall.ControlTest do
       CallControlTest.send_async_ok(uart, ["AT+CHUP\r"])
     end
     Control.hang_up(pid)
-    assert_receive(:ecall_disconnected, 20000)
+    assert_receive(:ecall_hungup, 20000)
   end
 
   test "dial number, hang up after max time", %{sim_port: uart}do
@@ -97,7 +97,7 @@ defmodule Ecall.ControlTest do
       CallControlTest.send_async_ok(uart, ["AT+CHUP\r"])
     end
     :timer.sleep(250)
-    assert_receive(:ecall_disconnected, 20000)
+    assert_receive(:ecall_hungup, 20000)
   end
 
   test "incoming call, hang up calling", %{sim_port: uart}do
@@ -143,6 +143,6 @@ defmodule Ecall.ControlTest do
       CallControlTest.send_async_ok(uart, ["AT+CHUP\r"])
     end
     Control.hang_up(pid)
-    assert_receive(:ecall_disconnected, 20000)
+    assert_receive(:ecall_hungup, 20000)
   end
 end
