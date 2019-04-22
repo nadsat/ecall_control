@@ -78,7 +78,7 @@ defmodule Ecall.Control.Port do
       end
       @impl Ecall.Control.Port
       def setup(:cast,:at_cmd, %{cmd_list: [h|t]} = data) do
-        Logger.info "[PORT][SETUP][:at_cmd]"
+        Logger.info "[PORT][SETUP][:at_cmd][#{inspect(h)}]"
         new_data = %{data | cmd_list: t}
         Port.write_data(data.serial_pid,h)
         {:keep_state, new_data}
@@ -141,7 +141,7 @@ defmodule Ecall.Control.Port do
   end
 
   def finish(pid) do
-    GenStateMachine.cast(pid, :end_cnd)
+    GenStateMachine.cast(pid, :end_cmd)
   end
 
   def answer(pid) do
