@@ -1,10 +1,11 @@
 defmodule Ecall.Control.MixProject do
   use Mix.Project
 
+  @version 0.0.2
   def project do
     [
       app: :ecall_control,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
       deps: deps()
@@ -28,4 +29,10 @@ defmodule Ecall.Control.MixProject do
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
     ]
   end
+  defp package() do
+    [
+      licenses: ["Apache-2.0"],
+      links: %{"GitHub" => "https://github.com/nadsat/ecall_audio"}
+    ]
+  end`
 end
