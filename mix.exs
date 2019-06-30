@@ -1,7 +1,7 @@
 defmodule Ecall.Control.MixProject do
   use Mix.Project
 
-  @version "0.0.3"
+  @version "0.0.4"
   def project do
     [
       app: :ecall_control,
@@ -10,6 +10,7 @@ defmodule Ecall.Control.MixProject do
       start_permanent: Mix.env() == :prod,
       description: description(),
       package: package(),
+      docs: [extras: ["README.md"], main: "readme"],
       deps: deps()
     ]
   end
@@ -26,7 +27,8 @@ defmodule Ecall.Control.MixProject do
     [
       {:mix_test_watch, "~> 0.8", only: :dev, runtime: false},
       {:gen_state_machine, "~> 2.0"},
-      {:circuits_uart, "~> 1.2"}
+      {:circuits_uart, "~> 1.2"},
+      {:ex_doc, "~> 0.19", only: :dev, runtime: false}
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
     ]
