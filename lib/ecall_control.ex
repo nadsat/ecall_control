@@ -10,6 +10,7 @@ defmodule Ecall.Control do
     # pid: pid of serial port process
     defstruct serial_pid: nil,
      controlling_process: nil,
+     write_pid: nil,
      port_module: nil,
      last_state: :idle,
      ok_time: 300,
@@ -66,6 +67,13 @@ defmodule Ecall.Control do
    GenStateMachine.cast(pid, :reject_call) 
   end
 
+  @doc """
+  Write command to serial port 
+  """
+  @spec write_command(pid(), String.t(), String.t()) :: :ok
+  def write_command(pid, cmd, value) do
+   GenStateMachine.call(pid, {:write_cmd, cmd, value}, 5000) 
+  end
 
   #gen_state_machine callbacks
   def init(port_module) do
@@ -213,6 +221,17 @@ defmodule Ecall.Control do
     send(pid, :ecall_hungup)
     {:next_state, :idle, data}
   end
+  def handle_event({:call, from}, {:write_cmd, cmd, value}, data) do
+    Logger.info "Write Command"
+    new_data = %{data | write_pid: from}
+    module = data.port_module
+    module.write_command(data.serial_pid, cmd, value)
+    {:keep_state, new_data}
+  end
+  def handle_event(:info, {:write_ans, ans}, data) do
+    Logger.info "Write Answer"
+    {:keep_state, data, [{:reply, data.write_pid, ans}]}
+  end
   def handle_event(:state_timeout, event_content, data) do
     Logger.info "[:state_timeout] in [#{inspect(event_content)}]"
     new_data = %{data | last_state: event_content}
@@ -222,7 +241,7 @@ defmodule Ecall.Control do
     {:next_state, :abnormal_end,new_data, timeout_event}
   end
   def handle_event(event_type, event_content, data) do
-    Logger.info "Data from modem arrived Generic"
+    Logger.info "Generic data arrive"
     Logger.info event_type
     Logger.info "#{inspect(event_content)}"
     {:keep_state, data}

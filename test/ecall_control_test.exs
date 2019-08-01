@@ -145,4 +145,32 @@ defmodule Ecall.ControlTest do
     Control.hang_up(pid)
     assert_receive(:ecall_hungup, 20000)
   end
+
+  test "incoming call, send write command", %{sim_port: uart}do
+    {:ok, pid} = Control.start_link(Port.Sim7xxx)
+    cmds = for n <- Port.Sim7xxx.setup_list, do: n <> "\r"
+    spawn fn ->
+      CallControlTest.send_async_ok(uart, cmds)
+    end
+    assert :ok = Control.open_device(pid, CallControlTest.control_port())
+    assert :ok = Circuits.UART.write(uart, "+CLCC: 2,1,4,0,0,\"131313\",129\r\n")
+    Circuits.UART.drain(uart)
+    assert_receive({:ecall_incoming,"131313"}, 20000)
+    spawn fn ->
+      CallControlTest.send_async_ok(uart, ["AT+CPCMREG=1\r"])
+    end
+    Control.write_command(pid,"AT+CPCMREG", "1") 
+    spawn fn ->
+      CallControlTest.send_async_ok(uart, ["ATA\r"])
+    end
+    Control.accept pid
+    assert :ok = Circuits.UART.write(uart, "+CLCC: 2,1,0,0,0,\"131313\",129\r\n")
+    Circuits.UART.drain(uart)
+    assert_receive(:ecall_connected, 20000)
+    spawn fn ->
+      CallControlTest.send_async_ok(uart, ["AT+CHUP\r"])
+    end
+    Control.hang_up(pid)
+    assert_receive(:ecall_hungup, 20000)
+  end
 end

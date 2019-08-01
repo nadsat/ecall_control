@@ -10,6 +10,7 @@ defmodule Ecall.Control.Port do
   @callback answer(pid()) :: :ok 
   @callback reject(pid()) :: :ok 
   @callback finish(pid()) :: :ok 
+  @callback write_command(pid(), String.t(), String.t()) :: :ok 
   alias Ecall.Control.Port
 
   defmacro __using__([]) do
@@ -61,6 +62,9 @@ defmodule Ecall.Control.Port do
 
       @impl Ecall.Control.Port
       def answer(pid), do: Port.answer(pid)
+
+      @impl Ecall.Control.Port
+      def write_command(pid, cmd, value), do: Port.write_command(pid, cmd, value)
 
       @impl Ecall.Control.Port
       def setup({:call,from}, {:open, ctrl_pid, name}, data) do
@@ -148,6 +152,9 @@ defmodule Ecall.Control.Port do
     GenStateMachine.cast(pid, :answer)
   end
 
+  def write_command(pid, cmd, value) do
+    GenStateMachine.cast(pid, {:write_command, cmd, value})
+  end
   def init() do
     case  Circuits.UART.start_link do
       {:ok, pid} ->
