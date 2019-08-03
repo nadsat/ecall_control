@@ -1,7 +1,7 @@
 defmodule Ecall.Control.MixProject do
   use Mix.Project
 
-  @version "0.0.4"
+  @version "0.0.5"
   def project do
     [
       app: :ecall_control,
