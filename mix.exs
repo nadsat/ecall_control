@@ -6,7 +6,7 @@ defmodule Ecall.Control.MixProject do
     [
       app: :ecall_control,
       version: @version,
-      elixir: "~> 1.8",
+      elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
       description: description(),
       package: package(),
